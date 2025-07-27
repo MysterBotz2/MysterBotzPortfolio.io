@@ -1,92 +1,199 @@
-/* main.js */
+import { scaleFactor } from "./constants";
+import { k } from "./kaboomCtx";
+import { setCamScale } from "./utils";
 
-// Portfolio Data
-const portfolioData = {
-  name: "Mark Erald P. Boton",
-  title: "Web Developer",
-  about: "Passionate developer with experience in building web applications.",
-  projects: [
-    {
-      name: "Project One",
-      description: "A brief description of project one.",
-      link: "#"
+
+//Loading Sprites
+
+k.loadSprite("playerSprite", "./WholeSprite.png",
+  {
+    sliceX: 4,
+    sliceY: 4,
+    anims: {
+      "idle-down": {
+        from: 0,
+        to: 1,
+        loop: true,
+        speed: 8,
+      },
+      "idle-up": 12,
+      "idle-side": 8,
+      "walk-down": {
+        from: 4,
+        to: 6,
+        loop: true,
+        speed: 8,
+      },
+      "walk-up": {
+        from: 12,
+        to: 15,
+        loop: true,
+        speed: 8,
+      },
+      "walk-side": {
+        from: 8,
+        to: 11,
+        loop: true,
+        speed: 8,
+      },
     },
+  }
+);
+
+k.scene("main", () => {
+
+  const player = k.make([
+    k.sprite("playerSprite", {
+      anim: "idleDown"
+    }),
+    k.pos(),
+    k.area({shape: new k.Rect(k.vec2(0,3),10,10)}),
+    k.body(),
+    k.anchor("center"),
+    k.scale(scaleFactor),
     {
-      name: "Project Two",
-      description: "A brief description of project two.",
-      link: "#"
+      speed: 250,
+      direction: "down",
+    },
+    "player"
+  ]);
+
+   player.pos = k.vec2(k.width() / 2, k.height() / 2);
+  k.add(player)
+
+  setCamScale(k);
+
+    k.onResize(()=>{
+         setCamScale(k);
+    });
+
+    k.onUpdate(() => {
+        //k.camPos(player.pos.x, player.pos.y + 100);
+    });
+
+    k.onMouseDown((mouseBtn)=> {
+        if(mouseBtn !== "left") return;
+
+        const worldMousePos = k.toWorld(k.mousePos());
+        player.moveTo(worldMousePos, player.speed);
+
+        const mouseAngle = player.pos.angle(worldMousePos);
+
+        const lowerBound = 50;
+        const upperBound = 125;
+
+        if(
+            mouseAngle > lowerBound
+            &&
+            mouseAngle < upperBound
+            &&
+            player.curAnim() !== "walk-up"
+        ){
+            player.play("walk-up");
+            player.direction = "up";
+            return;
+        }
+
+        if(
+            mouseAngle < -lowerBound
+            &&
+            mouseAngle > -upperBound
+            &&
+            player.curAnim() !== "walk-down"
+        ){
+            player.play("walk-down");
+            player.direction = "down";
+            return;
+        }
+
+        if(Math.abs(mouseAngle) > upperBound)
+        {
+            player.flipX = false;
+            if(player.curAnim() !== "walk-side") player.play("walk-side");
+            player.direction = "right";
+            return;
+        }
+
+        if(Math.abs(mouseAngle) < lowerBound)
+        {
+            player.flipX = true;
+            if(player.curAnim() !== "walk-side") player.play("walk-side");
+            player.direction = "right";
+            return;
+        }
+
+    });
+
+    function stopAnims() {
+        if (player.direction === "down") {
+            player.play("idle-down");
+            return;
+        }
+        if (player.direction === "up") {
+            player.play("idle-up");
+            return;
+        }
+
+        player.play("idle-side");
+
     }
-  ],
-  contact: {
-    email: "your.email@example.com",
-    linkedin: "https://linkedin.com/in/yourprofile"
-  }
-};
 
-// Helper to create elements
-function createElement(tag, attrs = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const key in attrs) {
-    if (key === "class") el.className = attrs[key];
-    else if (key === "href") el.setAttribute("href", attrs[key]);
-    else el[key] = attrs[key];
-  }
-  children.forEach(child => {
-    if (typeof child === "string") el.appendChild(document.createTextNode(child));
-    else if (child) el.appendChild(child);
+    k.onMouseRelease(stopAnims);
+
+    k.onKeyRelease(() => {
+        stopAnims();
+    });
+
+    k.onKeyDown((key) => {
+    const keyMap = [
+      k.isKeyDown("right"),
+      k.isKeyDown("left"),
+      k.isKeyDown("up"),
+      k.isKeyDown("down"),
+    ];
+
+    let nbOfKeyPressed = 0;
+    for (const key of keyMap) {
+      if (key) {
+        nbOfKeyPressed++;
+      }
+    }
+
+    if (nbOfKeyPressed > 1) return;
+
+    if (player.isInDialogue) return;
+    if (keyMap[0]) {
+      player.flipX = false;
+      if (player.curAnim() !== "walk-side") player.play("walk-side");
+      player.direction = "right";
+      player.move(player.speed, 0);
+      return;
+    }
+
+    if (keyMap[1]) {
+      player.flipX = true;
+      if (player.curAnim() !== "walk-side") player.play("walk-side");
+      player.direction = "left";
+      player.move(-player.speed, 0);
+      return;
+    }
+
+    if (keyMap[2]) {
+      if (player.curAnim() !== "walk-up") player.play("walk-up");
+      player.direction = "up";
+      player.move(0, -player.speed);
+      return;
+    }
+
+    if (keyMap[3]) {
+      if (player.curAnim() !== "walk-down") player.play("walk-down");
+      player.direction = "down";
+      player.move(0, player.speed);
+    }
   });
-  return el;
-}
 
-// Render Portfolio
-function renderPortfolio(data) {
-  const container = createElement("div", { class: "portfolio-container" },
-    createElement("header", {},
-      createElement("h1", {}, data.name),
-      createElement("h2", {}, data.title)
-    ),
-    createElement("section", { class: "about" },
-      createElement("h3", {}, "About Me"),
-      createElement("p", {}, data.about)
-    ),
-    createElement("section", { class: "projects" },
-      createElement("h3", {}, "Projects"),
-      ...data.projects.map(project =>
-        createElement("div", { class: "project" },
-          createElement("h4", {}, project.name),
-          createElement("p", {}, project.description),
-          createElement("a", { href: project.link, target: "_blank" }, "View Project")
-        )
-      )
-    ),
-    createElement("section", { class: "contact" },
-      createElement("h3", {}, "Contact"),
-      createElement("ul", {},
-        createElement("li", {}, `Email: `, createElement("a", { href: `mailto:${data.contact.email}` }, data.contact.email)),
-        createElement("li", {}, `LinkedIn: `, createElement("a", { href: data.contact.linkedin, target: "_blank" }, data.contact.linkedin))
-      )
-    )
-  );
-  document.body.appendChild(container);
-}
 
-// Basic Styles
-const style = document.createElement("style");
-style.textContent = `
-  body { font-family: Arial, sans-serif; margin: 0; background: #f9f9f9; }
-  .portfolio-container { max-width: 700px; margin: 40px auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 2px 8px #0001; }
-  header { text-align: center; }
-  h1 { margin-bottom: 0; }
-  h2 { margin-top: 8px; color: #666; font-weight: 400; }
-  section { margin-top: 32px; }
-  .project { margin-bottom: 20px; }
-  .project h4 { margin: 0 0 4px 0; }
-  .contact ul { list-style: none; padding: 0; }
-  .contact li { margin-bottom: 8px; }
-  a { color: #007acc; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-`;
-document.head.appendChild(style);
+});
 
-// Initialize
-document.addEventListener("DOMContentLoaded", () => renderPortfolio(portfolioData));
+
+k.go("main");

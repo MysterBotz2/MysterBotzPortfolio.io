@@ -10,5 +10,9 @@
   },
   "devDependencies": {
     "vite": "^7.0.4"
+  },
+  "dependencies": {
+    "kaboom": "^3000.1.17",
+    "terser": "^5.43.1"
   }
 }
