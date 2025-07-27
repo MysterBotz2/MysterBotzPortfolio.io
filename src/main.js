@@ -40,11 +40,25 @@ k.loadSprite("playerSprite", "./WholeSprite.png",
   }
 );
 
-k.scene("main", () => {
+k.loadSprite("map", "./map.png");
+
+
+k.setBackground(k.Color.fromHex("#331047"));
+
+k.scene("main", async () => {
+
+  const mapData = await (await fetch("./map.json")).json();
+  const layers = mapData.layers;
+
+      const map = k.add([
+        k.sprite("map"),
+        k.pos(0, 0),
+        k.scale(scaleFactor),
+    ]);
 
   const player = k.make([
     k.sprite("playerSprite", {
-      anim: "idleDown"
+      anim: "idle-down"
     }),
     k.pos(),
     k.area({shape: new k.Rect(k.vec2(0,3),10,10)}),
@@ -54,12 +68,46 @@ k.scene("main", () => {
     {
       speed: 250,
       direction: "down",
+      collided: false,
     },
     "player"
   ]);
 
-   player.pos = k.vec2(k.width() / 2, k.height() / 2);
-  k.add(player)
+  for (const layer of layers) {
+    if (layer.name === "boundaries") {
+      for(const boundary of layer.objects) {
+        map.add([
+          k.area({
+            shape: new k.Rect(k.vec2(0), boundary.width, boundary.height),
+          }),
+          k.body({
+            isStatic: true,
+          }),
+          k.pos(boundary.x, boundary.y),
+          boundary.name
+        ]);
+
+        if (boundary.name) {
+         player.onCollide(boundary.name, () => {
+            //player.collided = true;
+        });
+      }
+    }
+    continue;
+  }
+
+  if(layer.name === "spawnpoints")
+  {
+    for(const spawn of layer.objects) {
+      if(spawn.name === "player") {
+        player.pos = k.vec2( (map.pos.x + spawn.x) * scaleFactor,
+                        (map.pos.y + spawn.y) * scaleFactor,);
+        k.add(player);
+        continue;
+      }
+    }
+  }
+}
 
   setCamScale(k);
 
@@ -67,12 +115,13 @@ k.scene("main", () => {
          setCamScale(k);
     });
 
+
     k.onUpdate(() => {
-        //k.camPos(player.pos.x, player.pos.y + 100);
+        k.camPos(player.pos.x, player.pos.y + 100);
     });
 
     k.onMouseDown((mouseBtn)=> {
-        if(mouseBtn !== "left") return;
+        if(mouseBtn !== "left" || player.collided) return;
 
         const worldMousePos = k.toWorld(k.mousePos());
         player.moveTo(worldMousePos, player.speed);
